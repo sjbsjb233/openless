@@ -96,6 +96,10 @@ const BAILIAN_MODELS: &[&str] = &[
     crate::asr::qwen_realtime::DEFAULT_MODEL,
     "qwen3-asr-flash-realtime-2026-02-10",
     "qwen3-asr-flash-realtime-2025-10-27",
+    "qwen-audio-3.1-asr-flash-message",
+    "qwen-audio-3.1-asr-flash-streaming",
+    "qwen-audio-3.1-asr-flash",
+    "qwen-audio-3.1-asr-flash-filetrans",
     crate::asr::dashscope_multimodal::QWEN_AUDIO_MODEL,
     crate::asr::dashscope_multimodal::DEFAULT_MODEL,
     "qwen3-asr-flash",
@@ -938,19 +942,25 @@ pub fn resolve_effective_asr_provider(active_asr: &str, model: &str) -> Result<S
         Ok(DASHSCOPE_MULTIMODAL_PROVIDER_ID.to_string())
     } else {
         Err(format!(
-            "不支持的百炼 ASR 模型：{model}。支持 Fun-ASR、Paraformer、SenseVoice、qwen-audio-3.0-asr-flash 和 Qwen3-ASR 的实时、同步及录音文件模型"
+            "不支持的百炼 ASR 模型：{model}。支持 Fun-ASR、Paraformer、SenseVoice、Qwen-Audio 3.0 / 3.1 和 Qwen3-ASR 的实时、同步及录音文件模型"
         ))
     }
 }
 
 fn is_classic_bailian_realtime_model(model: &str) -> bool {
-    model == "qwen-audio-3.0-asr-flash-streaming"
+    is_qwen_audio_realtime_model(model)
         || model.starts_with("fun-asr-realtime")
         || model.starts_with("fun-asr-flash-8k-realtime")
         || model.starts_with("paraformer-realtime")
         || model.starts_with("paraformer-8k-realtime")
         || model.starts_with("sensevoice-realtime")
         || model.starts_with("sensevoice-8k-realtime")
+}
+
+/// Qwen-Audio models served over the classic DashScope duplex WebSocket:
+/// 3.0 `-streaming` and 3.1 `-streaming` / `-message`.
+fn is_qwen_audio_realtime_model(model: &str) -> bool {
+    model.starts_with("qwen-audio") && (model.contains("-streaming") || model.contains("-message"))
 }
 
 pub fn stepfun_model_is_stream(model: &str) -> bool {
@@ -980,7 +990,10 @@ pub fn dashscope_batch_protocol_for_model(model: &str) -> Option<DashScopeBatchP
         return None;
     }
     let qwen_sync = dashscope_uses_qwen_sync_envelope(model);
-    let qwen_audio = model.starts_with("qwen-audio") && !model.contains("streaming");
+    if model.starts_with("qwen-audio") && model.contains("-filetrans") {
+        return Some(DashScopeBatchProtocol::AsyncTranscription);
+    }
+    let qwen_audio = model.starts_with("qwen-audio") && !is_qwen_audio_realtime_model(model);
     if model.starts_with("fun-asr-flash") || qwen_sync || qwen_audio {
         return Some(DashScopeBatchProtocol::Multimodal);
     }
@@ -1281,6 +1294,40 @@ mod tests {
             STEPFUN_REALTIME_PROVIDER_ID
         );
         assert!(resolve_effective_asr_provider(BAILIAN_PROVIDER_ID, "unknown-asr").is_err());
+    }
+
+    #[test]
+    fn routes_qwen_audio_3_1_family_to_its_transport() {
+        for (model, provider, batch) in [
+            (
+                "qwen-audio-3.1-asr-flash-message",
+                BAILIAN_PROVIDER_ID,
+                None,
+            ),
+            (
+                "qwen-audio-3.1-asr-flash-streaming",
+                BAILIAN_PROVIDER_ID,
+                None,
+            ),
+            (
+                "qwen-audio-3.1-asr-flash",
+                DASHSCOPE_MULTIMODAL_PROVIDER_ID,
+                Some(DashScopeBatchProtocol::Multimodal),
+            ),
+            (
+                "qwen-audio-3.1-asr-flash-filetrans",
+                DASHSCOPE_MULTIMODAL_PROVIDER_ID,
+                Some(DashScopeBatchProtocol::AsyncTranscription),
+            ),
+        ] {
+            assert_eq!(
+                resolve_effective_asr_provider(BAILIAN_PROVIDER_ID, model).unwrap(),
+                provider,
+                "{model}"
+            );
+            assert_eq!(dashscope_batch_protocol_for_model(model), batch, "{model}");
+            assert!(BAILIAN_MODELS.contains(&model), "{model}");
+        }
     }
 
     #[test]

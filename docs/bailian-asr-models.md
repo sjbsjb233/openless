@@ -8,7 +8,7 @@
 - 协议按模型名选择（DashScope WebSocket 推理协议）；验证探针 `asr_silence`。
 - 目录来源：`provider_rules::provider_descriptors` → 生成文件 `src/lib/ipc/provider-descriptors.generated.json`（重新生成：`cargo run --locked -p openless-core --example export_provider_descriptors`）。
 
-## 2. 当前静态模型目录（14 个）
+## 2. 当前静态模型目录（18 个）
 
 | 模型 | 说明 |
 | --- | --- |
@@ -17,6 +17,8 @@
 | `fun-asr-flash-2026-06-15`、`fun-asr`、`fun-asr-2025-11-07`、`fun-asr-2025-08-25` | Fun-ASR 各版本 |
 | `fun-asr-mtl`、`fun-asr-mtl-2025-08-25` | 多语种（MTL） |
 | `qwen3-asr-flash-realtime`、`qwen3-asr-flash-realtime-2026-02-10`、`qwen3-asr-flash-realtime-2025-10-27`、`qwen3-asr-flash` | Qwen3 ASR 实时/闪速 |
+| `qwen-audio-3.1-asr-flash-message`、`qwen-audio-3.1-asr-flash-streaming` | Qwen Audio 3.1 实时（DashScope WebSocket）；-message 面向输入法 / 语音消息 |
+| `qwen-audio-3.1-asr-flash`、`qwen-audio-3.1-asr-flash-filetrans` | Qwen Audio 3.1 同步录音 / 异步文件转写 |
 | `qwen-audio-3.0-asr-flash` | Qwen Audio 3.0 ASR |
 | `paraformer-v2` | Paraformer v2 |
 

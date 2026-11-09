@@ -750,6 +750,11 @@ fn run_task_message(task_id: &str, model: &str, vocabulary_id: Option<&str>) -> 
     if let Some(vocabulary_id) = vocabulary_id.map(str::trim).filter(|id| !id.is_empty()) {
         parameters["vocabulary_id"] = Value::String(vocabulary_id.to_string());
     }
+    // qwen-audio-*-message only returns final sentences unless interim results
+    // are requested; ask for them so the capsule streams text while speaking.
+    if model.starts_with("qwen-audio") && model.contains("-message") {
+        parameters["intermediate_result_enabled"] = Value::Bool(true);
+    }
 
     json!({
         "header": {
@@ -1237,6 +1242,29 @@ mod tests {
         assert_eq!(value["payload"]["parameters"]["sample_rate"], 16000);
         assert_eq!(value["payload"]["parameters"]["format"], "pcm");
         assert!(value["payload"]["parameters"]["vocabulary_id"].is_null());
+    }
+
+    #[test]
+    fn run_task_message_requests_interim_results_for_qwen_audio_message() {
+        let message: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            "qwen-audio-3.1-asr-flash-message",
+            None,
+        ))
+        .unwrap();
+        assert_eq!(
+            message["payload"]["parameters"]["intermediate_result_enabled"],
+            true
+        );
+        for model in [DEFAULT_MODEL, "qwen-audio-3.1-asr-flash-streaming"] {
+            let value: Value = serde_json::from_str(&run_task_message("abc", model, None)).unwrap();
+            assert!(
+                value["payload"]["parameters"]
+                    .get("intermediate_result_enabled")
+                    .is_none(),
+                "{model}"
+            );
+        }
     }
 
     #[test]

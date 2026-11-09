@@ -1093,13 +1093,21 @@ function AsrAdvancedOptions({
   );
 }
 
+// Qwen-Audio -streaming / -message models use the classic DashScope realtime WebSocket
+// (provider_rules::is_qwen_audio_realtime_model).
+function isQwenAudioRealtimeModel(m: string): boolean {
+  return m.startsWith('qwen-audio') && (m.includes('-streaming') || m.includes('-message'));
+}
+
 // Under unified "Alibaba Cloud Bailian", decide the protocol by model name (kept in sync with
 // the backend coordinator::resolve_effective_asr_provider): qwen3-asr-flash-realtime*,
-// fun-asr-realtime*, and fun-asr-flash-8k-realtime* are realtime models; fun-asr-flash-2026-06-15
-// and qwen-audio-3.0-asr-flash are "record then transcribe" (synchronous).
+// fun-asr-realtime*, fun-asr-flash-8k-realtime* and qwen-audio-*-streaming / -message are
+// realtime models; qwen-audio-*-filetrans is an async file model; fun-asr-flash-2026-06-15
+// and qwen-audio-3.x-asr-flash are "record then transcribe" (synchronous).
 function bailianModelProtocol(model: string): 'realtime' | 'sync' | 'async' {
   const m = model.trim();
-  if (!m || m.includes('realtime') || m === 'qwen-audio-3.0-asr-flash-streaming') return 'realtime';
+  if (!m || m.includes('realtime') || isQwenAudioRealtimeModel(m)) return 'realtime';
+  if (m.startsWith('qwen-audio') && m.includes('-filetrans')) return 'async';
   // qwen3-asr-flash-filetrans only accepts public URLs and is not supported yet (the backend
   // protocol_for_model rejects it explicitly), so the frontend no longer classifies it as async.
   if (
@@ -1120,7 +1128,7 @@ function bailianModelSupportsVocabulary(model: string): boolean {
   const m = model.trim();
   return (
     !m ||
-    m === 'qwen-audio-3.0-asr-flash-streaming' ||
+    isQwenAudioRealtimeModel(m) ||
     m.startsWith('fun-asr-realtime') ||
     m.startsWith('paraformer-realtime') ||
     m.startsWith('sensevoice-realtime')
