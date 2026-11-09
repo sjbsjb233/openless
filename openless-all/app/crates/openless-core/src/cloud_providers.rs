@@ -150,12 +150,30 @@ struct CloudTranscriptionPreparation {
     api_key: String,
     endpoint: String,
     advanced_config: crate::provider_rules::AdvancedAsrConfig,
+    /// Qwen-Audio 3.1 options from the same `asr.advanced_config` JSON.
+    qwen_audio_options: crate::asr::qwen_audio::QwenAsrOptions,
     credentials: HashMap<&'static str, Option<String>>,
 }
 
 impl CloudTranscriptionPreparation {
     fn value(&self, account: &str) -> Option<String> {
         self.credentials.get(account).cloned().flatten()
+    }
+
+    /// Extra request fields for Qwen-Audio 3.1 models; empty for any other model.
+    fn qwen_audio_request(&self, model: &str) -> crate::asr::qwen_audio::QwenAudioRequest {
+        let vocabulary_id = self.value(ASR_VOCABULARY_ID_ACCOUNT);
+        let polish = &self.context.polish;
+        crate::asr::qwen_audio::build_request(
+            model,
+            &self.qwen_audio_options,
+            &crate::asr::qwen_audio::QwenAudioSessionInputs {
+                hotwords: &polish.hotwords,
+                working_languages: &polish.working_languages,
+                context_turns: &polish.asr_context_turns,
+                vocabulary_id: vocabulary_id.as_deref(),
+            },
+        )
     }
 }
 
@@ -515,6 +533,9 @@ async fn prepare_cloud_transcription(
     );
     let preparation = CloudTranscriptionPreparation {
         context,
+        qwen_audio_options: crate::asr::qwen_audio::parse_options(
+            value(ASR_ADVANCED_CONFIG_ACCOUNT).as_deref(),
+        ),
         provider_type,
         kind: crate::provider_rules::active_asr_provider_kind(&effective_provider),
         effective_provider,
@@ -650,6 +671,7 @@ async fn build_cloud_transcription_session(
                     endpoint,
                     model: effective_model.clone(),
                     vocabulary_id,
+                    qwen_audio: preparation.qwen_audio_request(&effective_model),
                 },
                 Arc::clone(&task_spawner),
             ));
@@ -743,7 +765,8 @@ async fn build_cloud_transcription_session(
             (
                 CloudTranscriptionSessionKind::DashScope(Arc::new(
                     DashScopeMultimodalASR::new(api_key, endpoint, model.clone())
-                        .with_protocol(preparation.bailian_protocol),
+                        .with_protocol(preparation.bailian_protocol)
+                        .with_qwen_audio(preparation.qwen_audio_request(&model)),
                 )),
                 Some(model),
             )

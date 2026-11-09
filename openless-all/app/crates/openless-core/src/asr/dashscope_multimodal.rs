@@ -53,6 +53,8 @@ pub struct DashScopeMultimodalASR {
     base_url: String,
     model: String,
     protocol: crate::provider_rules::BailianProtocol,
+    /// Qwen-Audio 3.1 extras; empty for every other model.
+    qwen_audio: crate::asr::qwen_audio::QwenAudioRequest,
     buffer: Mutex<Vec<u8>>,
 }
 
@@ -63,12 +65,18 @@ impl DashScopeMultimodalASR {
             base_url,
             model,
             protocol: crate::provider_rules::BailianProtocol::Auto,
+            qwen_audio: Default::default(),
             buffer: Mutex::new(Vec::new()),
         }
     }
 
     pub fn with_protocol(mut self, protocol: crate::provider_rules::BailianProtocol) -> Self {
         self.protocol = protocol;
+        self
+    }
+
+    pub fn with_qwen_audio(mut self, request: crate::asr::qwen_audio::QwenAudioRequest) -> Self {
+        self.qwen_audio = request;
         self
     }
 
@@ -149,7 +157,11 @@ impl DashScopeMultimodalASR {
             "data:audio/wav;base64,{}",
             base64::engine::general_purpose::STANDARD.encode(&wav)
         );
-        let body = dashscope_multimodal_body_with_protocol(&self.model, &audio_data, self.protocol);
+        let mut body =
+            dashscope_multimodal_body_with_protocol(&self.model, &audio_data, self.protocol);
+        if !self.protocol.uses_qwen_envelope(&self.model) {
+            apply_qwen_audio_to_sync_body(&mut body, &self.qwen_audio);
+        }
         let url = generation_url(&self.base_url)?;
         let request_timeout =
             self.transcribe_timeout(crate::asr::pcm::pcm_duration_ms(pcm) as f64 / 1000.0);
@@ -260,7 +272,11 @@ impl DashScopeMultimodalASR {
             .header("Content-Type", "application/json")
             .header("X-DashScope-Async", "enable")
             .header("X-DashScope-OssResourceResolve", "enable")
-            .json(&async_transcription_body(&self.model, file_url))
+            .json(&{
+                let mut body = async_transcription_body(&self.model, file_url);
+                apply_qwen_audio_to_async_body(&mut body, &self.qwen_audio);
+                body
+            })
             .timeout(Duration::from_secs(30))
             .send()
             .await
@@ -523,9 +539,9 @@ pub fn dashscope_multimodal_body_with_protocol(
             },
         });
     }
-    // qwen-audio-3.0-asr-flash also supports vocabulary and language_hints;
-    // this batch client doesn't map those settings into the request body yet,
-    // so it stays on auto language detection with no hotwords for now.
+    // Qwen-Audio 3.1 options (language_hints, vocabulary, context, ...) are
+    // layered on afterwards by `apply_qwen_audio_to_sync_body`; other models
+    // keep this exact body.
     serde_json::json!({
         "model": model,
         "input": {
@@ -550,6 +566,64 @@ pub fn async_transcription_body(model: &str, file_url: &str) -> Value {
         "input": { "file_urls": [file_url] },
         "parameters": {},
     })
+}
+
+fn merge_qwen_audio_parameters(
+    body: &mut Value,
+    request: &crate::asr::qwen_audio::QwenAudioRequest,
+) {
+    if request.parameters.is_empty() {
+        return;
+    }
+    if !body.get("parameters").is_some_and(Value::is_object) {
+        body["parameters"] = serde_json::json!({});
+    }
+    let parameters = body["parameters"]
+        .as_object_mut()
+        .expect("parameters is an object");
+    for (key, value) in &request.parameters {
+        // The audio envelope is owned by the client.
+        if key != "format" && key != "sample_rate" {
+            parameters.insert(key.clone(), value.clone());
+        }
+    }
+}
+
+/// Adds Qwen-Audio 3.1 options to a standard multimodal-generation body:
+/// parameters are merged, and context turns become user `input_text`
+/// messages placed before the audio message (the audio message must stay
+/// last).
+pub fn apply_qwen_audio_to_sync_body(
+    body: &mut Value,
+    request: &crate::asr::qwen_audio::QwenAudioRequest,
+) {
+    merge_qwen_audio_parameters(body, request);
+    if request.context_turns.is_empty() {
+        return;
+    }
+    if let Some(messages) = body
+        .pointer_mut("/input/messages")
+        .and_then(Value::as_array_mut)
+    {
+        let mut context = request.context_messages();
+        context.append(messages);
+        *messages = context;
+    }
+}
+
+/// Adds Qwen-Audio 3.1 options to an async file-transcription body:
+/// parameters are merged and context goes to `input.context`.
+pub fn apply_qwen_audio_to_async_body(
+    body: &mut Value,
+    request: &crate::asr::qwen_audio::QwenAudioRequest,
+) {
+    merge_qwen_audio_parameters(body, request);
+    if request.context_turns.is_empty() {
+        return;
+    }
+    if let Some(input) = body.get_mut("input").and_then(Value::as_object_mut) {
+        input.insert("context".into(), Value::Array(request.context_messages()));
+    }
 }
 
 pub fn extract_async_result_url(json: &Value) -> Result<String> {
@@ -811,6 +885,77 @@ mod tests {
         assert_eq!(funasr["input"]["file_urls"][0], "oss://bucket/test.wav");
         assert!(funasr["input"].get("file_url").is_none());
         assert_eq!(funasr["parameters"], serde_json::json!({}));
+    }
+
+    fn sample_qwen_audio_request(model: &str) -> crate::asr::qwen_audio::QwenAudioRequest {
+        use crate::asr::qwen_audio::{
+            build_request, LanguageMode, QwenAsrOptions, QwenAudioSessionInputs,
+        };
+        let options = QwenAsrOptions {
+            language_mode: LanguageMode::Manual,
+            language_hints: vec!["zh".into()],
+            context_enhancement: true,
+            ..QwenAsrOptions::default()
+        };
+        let hotwords = vec!["会议室".to_string()];
+        let turns = vec!["第一句".to_string(), "第二句".to_string()];
+        build_request(
+            model,
+            &options,
+            &QwenAudioSessionInputs {
+                hotwords: &hotwords,
+                context_turns: &turns,
+                ..Default::default()
+            },
+        )
+    }
+
+    #[test]
+    fn qwen_audio_sync_body_prepends_context_and_merges_parameters() {
+        use crate::asr::qwen_audio::FLASH_MODEL;
+        let uri = "data:audio/wav;base64,AAAA";
+        let mut body = dashscope_multimodal_body_from_uri(FLASH_MODEL, uri);
+        apply_qwen_audio_to_sync_body(&mut body, &sample_qwen_audio_request(FLASH_MODEL));
+        assert_eq!(body["parameters"]["format"], "wav");
+        assert_eq!(body["parameters"]["sample_rate"], "16000");
+        assert_eq!(
+            body["parameters"]["language_hints"],
+            serde_json::json!(["zh"])
+        );
+        assert_eq!(
+            body["parameters"]["vocabulary"],
+            serde_json::json!({"会议室": 4})
+        );
+        assert!(body["parameters"]
+            .get("disfluency_removal_enabled")
+            .is_none());
+        let messages = body["input"]["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0]["content"][0]["text"], "第一句");
+        assert_eq!(messages[1]["content"][0]["text"], "第二句");
+        assert_eq!(
+            messages[2]["content"][0]["input_audio"]["data"], uri,
+            "audio stays last"
+        );
+
+        // Other models are untouched by an empty request.
+        let mut untouched = dashscope_multimodal_body_from_uri(DEFAULT_MODEL, uri);
+        let before = untouched.clone();
+        apply_qwen_audio_to_sync_body(&mut untouched, &Default::default());
+        assert_eq!(untouched, before);
+    }
+
+    #[test]
+    fn qwen_audio_async_body_carries_context_and_parameters() {
+        use crate::asr::qwen_audio::FILETRANS_MODEL;
+        let mut body = async_transcription_body(FILETRANS_MODEL, "oss://bucket/test.wav");
+        apply_qwen_audio_to_async_body(&mut body, &sample_qwen_audio_request(FILETRANS_MODEL));
+        assert_eq!(body["input"]["file_urls"][0], "oss://bucket/test.wav");
+        assert_eq!(body["input"]["context"][1]["content"][0]["text"], "第二句");
+        assert_eq!(
+            body["parameters"]["language_hints"],
+            serde_json::json!(["zh"])
+        );
     }
 
     #[test]

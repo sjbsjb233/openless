@@ -174,7 +174,7 @@ impl ProviderService {
             None => None,
         };
 
-        let bailian_protocol = if request.kind == ProviderKind::Asr {
+        let (bailian_protocol, qwen_audio_options) = if request.kind == ProviderKind::Asr {
             let raw = self
                 .read(
                     namespace,
@@ -182,12 +182,19 @@ impl ProviderService {
                     crate::credentials::ASR_ADVANCED_CONFIG_ACCOUNT,
                 )
                 .await?;
-            crate::provider_rules::BailianProtocol::from_config(&provider_type, raw.as_deref())
-                .map_err(invalid_request)?
+            (
+                crate::provider_rules::BailianProtocol::from_config(&provider_type, raw.as_deref())
+                    .map_err(invalid_request)?,
+                crate::asr::qwen_audio::parse_options(raw.as_deref()),
+            )
         } else {
-            crate::provider_rules::BailianProtocol::Auto
+            (
+                crate::provider_rules::BailianProtocol::Auto,
+                Default::default(),
+            )
         };
         Ok(ResolvedProvider {
+            qwen_audio_options,
             bailian_protocol,
             thinking_enabled: request.thinking_enabled,
             protocol: if request.kind == ProviderKind::Llm {
@@ -411,6 +418,10 @@ impl ProviderApi for ProviderService {
 struct ResolvedProvider {
     thinking_enabled: bool,
     bailian_protocol: crate::provider_rules::BailianProtocol,
+    /// Applied to the batch sample-audio probe so validation exercises the
+    /// configured Qwen-Audio 3.1 parameters (no dictionary or history: the
+    /// probe has no dictation session).
+    qwen_audio_options: crate::asr::qwen_audio::QwenAsrOptions,
     protocol: LlmProtocolConfig,
     kind: ProviderKind,
     provider_id: String,
@@ -618,11 +629,17 @@ async fn validate_dashscope_probe(resolved: &ResolvedProvider) -> Result<(), Bac
         stored_endpoint.to_string()
     };
     validate_provider_endpoint(&endpoint, false)?;
+    let qwen_audio = crate::asr::qwen_audio::build_request(
+        model,
+        &resolved.qwen_audio_options,
+        &Default::default(),
+    );
     let provider = crate::asr::DashScopeMultimodalASR::new(
         api_key.to_string(),
         endpoint.clone(),
         model.to_string(),
-    );
+    )
+    .with_qwen_audio(qwen_audio.clone());
     if protocol == crate::provider_rules::DashScopeBatchProtocol::AsyncTranscription {
         return tokio::time::timeout(
             Duration::from_secs(120),
@@ -641,11 +658,14 @@ async fn validate_dashscope_probe(resolved: &ResolvedProvider) -> Result<(), Bac
 
     let url = crate::asr::dashscope_multimodal::generation_url(&endpoint)
         .map_err(|_| invalid_request("ASR endpoint is invalid"))?;
-    let body = crate::asr::dashscope_multimodal::dashscope_multimodal_body_with_protocol(
+    let mut body = crate::asr::dashscope_multimodal::dashscope_multimodal_body_with_protocol(
         model,
         DASHSCOPE_ASR_VALIDATE_SAMPLE_URL,
         resolved.bailian_protocol,
     );
+    if !resolved.bailian_protocol.uses_qwen_envelope(model) {
+        crate::asr::dashscope_multimodal::apply_qwen_audio_to_sync_body(&mut body, &qwen_audio);
+    }
     let response = crate::net::credential_http()
         .post(url)
         .header("Authorization", format!("Bearer {api_key}"))
@@ -2363,6 +2383,10 @@ mod tests {
                 "bailian",
                 vec![
                     "fun-asr-realtime",
+                    "qwen-audio-3.1-asr-flash-message",
+                    "qwen-audio-3.1-asr-flash-streaming",
+                    "qwen-audio-3.1-asr-flash",
+                    "qwen-audio-3.1-asr-flash-filetrans",
                     "fun-asr-flash-8k-realtime",
                     "qwen3-asr-flash-realtime",
                     "qwen3-asr-flash-realtime-2026-02-10",
@@ -2397,6 +2421,7 @@ mod tests {
             let resolved = ResolvedProvider {
                 thinking_enabled: false,
                 bailian_protocol: crate::provider_rules::BailianProtocol::Auto,
+                qwen_audio_options: Default::default(),
                 protocol: LlmProtocolConfig::default(),
                 kind: ProviderKind::Asr,
                 provider_id: provider_type.to_string(),

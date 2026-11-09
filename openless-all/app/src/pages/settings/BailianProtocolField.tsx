@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { readCredential, setCredential } from '../../lib/ipc';
+import { readCredential } from '../../lib/ipc';
+import { updateAsrAdvancedConfig } from '../../lib/asrAdvancedConfigQueue';
 import {
   bailianProtocols,
   readBailianProtocol,
@@ -82,8 +83,7 @@ export function BailianProtocolField({
     onUserMutation?.();
     pending.current = (async () => {
       try {
-        const raw = await readCredential(account, channelId);
-        await setCredential(account, writeBailianProtocol(raw, protocol), channelId);
+        await updateAsrAdvancedConfig(channelId, (raw) => writeBailianProtocol(raw, protocol));
         if (mounted.current) {
           setSelected(protocol);
           onChange(protocol);

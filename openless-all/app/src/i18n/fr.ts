@@ -2097,6 +2097,63 @@ export const fr: typeof zhCN = {
         'Modèle d’enregistrement synchrone : transcrit une fois l’enregistrement terminé (5 min maximum).',
       bailianModelAsyncFileHint:
         'Modèle de fichiers asynchrone : envoie l’enregistrement et attend la fin de la transcription.',
+      qwenAsr: {
+        title: 'Options Qwen ASR',
+        note: 'S’applique uniquement aux modèles Qwen-Audio 3.1. Les changements prennent effet à la prochaine dictée.',
+        nativePolishLabel: 'Lissage natif',
+        nativePolishHint:
+          'Le modèle supprime les mots de remplissage, les répétitions et les reprises, puis lisse le texte. Cela s’applique au résultat final de chaque phrase ; pendant que vous parlez, le texte brut s’affiche. Une fois activé, vous pouvez régler le mode d’amélioration d’OpenLess sur « Brut » pour économiser un appel au LLM.',
+        intermediateLabel: 'Afficher le texte en parlant',
+        intermediateHint:
+          'Renvoie des résultats intermédiaires pour que la capsule affiche le texte au fil de la reconnaissance. Désactivé, le texte n’apparaît qu’à la fin de chaque phrase.',
+        languageLabel: 'Langue de reconnaissance',
+        languageHint:
+          'La détection automatique convient aux propos multilingues. « Suivre les langues habituelles » utilise les langues prises en charge parmi vos langues habituelles. Le mode manuel permet jusqu’à 4 langues.',
+        languageModes: {
+          auto: 'Détection automatique',
+          workingLanguages: 'Suivre les langues habituelles',
+          manual: 'Manuel',
+        },
+        languageAdd: 'Ajouter une langue',
+        languageLimit: '4 langues maximum',
+        languageEmpty: 'Sans langue choisie, la détection automatique est utilisée.',
+        languageRemove: 'Retirer {{name}}',
+        dialectLabel: 'Dialectes chinois',
+        dialectHint:
+          'Transcrire les dialectes chinois en mandarin standard ou conserver la formulation dialectale. S’applique au résultat final de chaque phrase.',
+        dialectOptions: {
+          mandarin: 'Convertir en mandarin',
+          keep: 'Conserver le dialecte',
+        },
+        hotwordsLabel: 'Mots-clés du dictionnaire',
+        hotwordsHint:
+          'Envoie les entrées du dictionnaire OpenLess au modèle comme mots-clés instantanés. Les entrées contenant des caractères chinois de plus de 15 caractères, ou uniquement en anglais de plus de 7 mots, sont ignorées.',
+        hotwordWeightLabel: 'Poids des mots-clés',
+        hotwordWeightHint:
+          '1–5. Plus la valeur est élevée, plus l’orthographe du dictionnaire est privilégiée.',
+        contextLabel: 'Renforcement du contexte',
+        contextHint:
+          'Envoie le texte de vos dernières dictées (5 au plus, 400 caractères chacune) comme contexte préalable, pour mieux reconnaître noms et termes en dictée continue. Utilise le réglage « Fenêtre de contexte d’amélioration (minutes) » ; à 0, rien n’est envoyé.',
+        moreShow: 'Plus d’options',
+        moreHide: 'Moins d’options',
+        vadLabel: 'Distance du micro',
+        vadHint:
+          'Le modèle VAD qui détecte la parole. Choisissez champ proche pour un casque ou en parlant près du micro, champ lointain si le micro est éloigné.',
+        vadOptions: {
+          default: 'Par défaut (champ lointain)',
+          near: 'Champ proche',
+          far: 'Champ lointain',
+        },
+        silenceLabel: 'Silence de fin de phrase (ms)',
+        silenceHint:
+          'Une phrase se termine après ce silence. Plage 200–6000 ; laissez vide pour la valeur par défaut de 800.',
+        silenceInvalid: 'Le silence de fin de phrase doit être un entier entre 200 et 6000.',
+        noiseLabel: 'Seuil de bruit',
+        noiseHint:
+          'Plage -1 à 1. Plus proche de -1, davantage de bruit est pris pour de la parole ; plus proche de 1, davantage de voix faible est prise pour du bruit. Laissez vide pour la valeur par défaut du service.',
+        noisePlaceholder: 'Par défaut',
+        noiseInvalid: 'Le seuil de bruit doit être un nombre entre -1 et 1.',
+      },
       appIdLabel: 'App ID',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Resource ID',

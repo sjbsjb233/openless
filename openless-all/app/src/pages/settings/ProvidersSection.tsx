@@ -28,6 +28,8 @@ import {
   type ProviderDescriptor,
 } from '../../lib/ipc';
 import { BailianProtocolField } from './BailianProtocolField';
+import { QwenAsrOptionsField } from './QwenAsrOptionsField';
+import { qwenAudioVariant } from '../../lib/qwenAsrOptions';
 import type { BailianProtocol } from '../../lib/bailianProtocol';
 import { LlmProtocolFields } from './LlmProtocolFields';
 import { ProviderFormContext } from './ProviderForm';
@@ -252,6 +254,7 @@ export function ChannelCredentialFields({
   const [asrModelRevision, setAsrModelRevision] = useState(0);
   const unifiedBailian = providerType === 'bailian';
   const [bailianModel, setBailianModel] = useState('');
+  const qwenVariant = unifiedBailian ? qwenAudioVariant(bailianModel) : null;
   const [bailianProtocol, setBailianProtocol] = useState<BailianProtocol>('auto');
   const [volcengineAuthMode, setVolcengineAuthMode] = useState<'app_id_token' | 'api_key'>(
     'app_id_token',
@@ -898,6 +901,15 @@ export function ChannelCredentialFields({
           selectedProtocol={bailianProtocol}
         />
       )}
+      {qwenVariant && (
+        <QwenAsrOptionsField
+          key={`${channelId}:qwen-asr`}
+          channelId={channelId}
+          variant={qwenVariant}
+          onUserMutation={onAsrMutation}
+          onBlockedChange={trackField}
+        />
+      )}
       {unifiedBailian &&
         (bailianProtocol === 'dashscope-realtime' ||
           (bailianProtocol === 'auto' && bailianModelSupportsVocabulary(bailianModel))) && (
@@ -1097,9 +1109,15 @@ function AsrAdvancedOptions({
 // the backend coordinator::resolve_effective_asr_provider): qwen3-asr-flash-realtime*,
 // fun-asr-realtime*, and fun-asr-flash-8k-realtime* are realtime models; fun-asr-flash-2026-06-15
 // and qwen-audio-3.0-asr-flash are "record then transcribe" (synchronous).
-function bailianModelProtocol(model: string): 'realtime' | 'sync' | 'async' {
+export function bailianModelProtocol(model: string): 'realtime' | 'sync' | 'async' {
   const m = model.trim();
-  if (!m || m.includes('realtime') || m === 'qwen-audio-3.0-asr-flash-streaming') return 'realtime';
+  if (!m || m.includes('realtime')) return 'realtime';
+  // Qwen-Audio (3.0 / 3.1): -streaming / -message are duplex WebSocket realtime models,
+  // -filetrans is async file transcription, the plain flash model is sync.
+  if (m.startsWith('qwen-audio')) {
+    if (m.includes('-streaming') || m.includes('-message')) return 'realtime';
+    return m.includes('-filetrans') ? 'async' : 'sync';
+  }
   // qwen3-asr-flash-filetrans only accepts public URLs and is not supported yet (the backend
   // protocol_for_model rejects it explicitly), so the frontend no longer classifies it as async.
   if (
@@ -1113,13 +1131,14 @@ function bailianModelProtocol(model: string): 'realtime' | 'sync' | 'async' {
   return 'sync';
 }
 
-// qwen-audio-3.0-asr-flash officially supports hotwords, but the batch protocol does not write
-// that setting into the request body yet; until the backend supports it, do not show a hotword
-// input that would have no effect.
-function bailianModelSupportsVocabulary(model: string): boolean {
+// Precompiled hotword list id (vocabulary_id): sent by the realtime client for every model, and
+// by the batch clients only for the Qwen-Audio 3.1 family. qwen-audio-3.0-asr-flash (batch)
+// still does not map it, so the field stays hidden there.
+export function bailianModelSupportsVocabulary(model: string): boolean {
   const m = model.trim();
   return (
     !m ||
+    qwenAudioVariant(m) !== null ||
     m === 'qwen-audio-3.0-asr-flash-streaming' ||
     m.startsWith('fun-asr-realtime') ||
     m.startsWith('paraformer-realtime') ||

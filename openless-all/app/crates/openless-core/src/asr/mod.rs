@@ -8,6 +8,7 @@ pub mod gemini;
 pub mod gemini_live;
 pub mod mimo;
 pub mod pcm;
+pub mod qwen_audio;
 pub mod qwen_realtime;
 pub mod stepfun_realtime;
 pub mod tencent_cloud;

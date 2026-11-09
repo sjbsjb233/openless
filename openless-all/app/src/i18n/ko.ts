@@ -2015,6 +2015,62 @@ export const ko: typeof zhCN = {
       bailianModelSyncFileHint: '동기 녹음 모델 · 말을 마친 뒤 전체 전사(한 클립 ≤ 5분).',
       bailianModelAsyncFileHint:
         '비동기 파일 모델 · 녹음을 업로드한 뒤 전사 작업 완료를 기다립니다.',
+      qwenAsr: {
+        title: 'Qwen ASR 설정',
+        note: 'Qwen-Audio 3.1 모델에만 적용됩니다. 변경 사항은 다음 받아쓰기부터 적용됩니다.',
+        nativePolishLabel: '기본 다듬기',
+        nativePolishHint:
+          "모델이 군말, 반복, 말을 고쳐 말한 부분을 지우고 문장을 매끄럽게 다듬습니다. 각 문장의 최종 결과에만 적용되며, 말하는 동안에는 원래 말이 표시됩니다. 켜 두면 OpenLess 다듬기 모드를 '원문'으로 바꿔 LLM 호출을 한 번 줄일 수 있습니다.",
+        intermediateLabel: '말하는 동안 표시',
+        intermediateHint:
+          '중간 결과를 받아 캡슐에 인식 중인 텍스트를 실시간으로 표시합니다. 끄면 문장이 끝난 뒤에 표시됩니다.',
+        languageLabel: '인식 언어',
+        languageHint:
+          "자동 감지는 여러 언어를 섞어 말할 때 적합합니다. 작업 언어 따르기는 '작업 언어' 중 모델이 지원하는 언어를 사용합니다. 직접 지정은 최대 4개까지 고를 수 있습니다.",
+        languageModes: {
+          auto: '자동 감지',
+          workingLanguages: '작업 언어 따르기',
+          manual: '직접 지정',
+        },
+        languageAdd: '언어 추가',
+        languageLimit: '최대 4개',
+        languageEmpty: '언어를 선택하지 않으면 자동 감지를 사용합니다.',
+        languageRemove: '{{name}} 제거',
+        dialectLabel: '중국어 방언',
+        dialectHint:
+          '중국어 방언을 표준 중국어 텍스트로 바꾸거나 방언 표현을 그대로 둡니다. 각 문장의 최종 결과에만 적용됩니다.',
+        dialectOptions: {
+          mandarin: '표준 중국어로 변환',
+          keep: '방언 그대로 유지',
+        },
+        hotwordsLabel: '사전 핫워드 사용',
+        hotwordsHint:
+          'OpenLess 사전 항목을 즉시 핫워드로 모델에 보냅니다. 비영문 문자가 들어간 15자 초과 항목과 7단어를 넘는 영문 전용 항목은 건너뜁니다.',
+        hotwordWeightLabel: '핫워드 가중치',
+        hotwordWeightHint: '1–5. 값이 클수록 사전 표기를 더 우선합니다.',
+        contextLabel: '컨텍스트 강화',
+        contextHint:
+          "최근 받아쓰기 텍스트(최대 5개, 각 400자)를 앞선 맥락으로 모델에 보내 연속 받아쓰기의 고유 명사 인식 정확도를 높입니다. 기간은 '대화 컨텍스트 윈도(분)' 설정을 따르며, 0이면 보내지 않습니다.",
+        moreShow: '추가 설정',
+        moreHide: '추가 설정 접기',
+        vadLabel: '마이크 거리',
+        vadHint:
+          '음성 구간을 판단하는 VAD 모델입니다. 헤드셋을 쓰거나 마이크 가까이에서 말하면 근거리, 마이크와 멀면 원거리를 고르세요.',
+        vadOptions: {
+          default: '기본값(원거리)',
+          near: '근거리',
+          far: '원거리',
+        },
+        silenceLabel: '문장 끝 무음 시간(ms)',
+        silenceHint:
+          '이 시간보다 오래 조용하면 문장이 끝난 것으로 판단합니다. 범위 200–6000, 비워 두면 기본값 800을 씁니다.',
+        silenceInvalid: '무음 시간은 200–6000 사이의 정수여야 합니다.',
+        noiseLabel: '노이즈 임계값',
+        noiseHint:
+          '범위 -1~1. -1에 가까울수록 노이즈를 음성으로, 1에 가까울수록 작은 목소리를 노이즈로 판단하기 쉽습니다. 비워 두면 서비스 기본값을 씁니다.',
+        noisePlaceholder: '기본값',
+        noiseInvalid: '노이즈 임계값은 -1~1 사이의 숫자여야 합니다.',
+      },
       appIdLabel: 'App ID(애플리케이션 ID)',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Resource ID',

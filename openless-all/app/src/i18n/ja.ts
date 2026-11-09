@@ -2028,6 +2028,62 @@ export const ja: typeof zhCN = {
       bailianModelSyncFileHint: '同期録音モデル · 話し終えてから一括で文字起こし（1 本 ≤ 5 分）。',
       bailianModelAsyncFileHint:
         '非同期ファイルモデル · 録音をアップロードし、文字起こしタスクの完了を待ちます。',
+      qwenAsr: {
+        title: 'Qwen ASR の設定',
+        note: 'Qwen-Audio 3.1 モデルにのみ適用されます。変更は次回の音声入力から反映されます。',
+        nativePolishLabel: 'ネイティブ整文',
+        nativePolishHint:
+          'モデルがフィラー、繰り返し、言い直しを取り除き、文章を整えます。各文の確定結果にのみ適用され、話している間は元の言葉が表示されます。オンにすると OpenLess の整文モードを「原文」にして LLM の呼び出しを 1 回省けます。',
+        intermediateLabel: '話しながら表示',
+        intermediateHint:
+          '途中結果を受け取り、カプセルに認識中のテキストをリアルタイム表示します。オフにすると各文が終わってから表示されます。',
+        languageLabel: '認識言語',
+        languageHint:
+          '自動検出は複数言語が混ざる発話に向いています。作業言語に合わせる場合は「作業言語」のうちモデルが対応する言語を使います。手動指定は最大 4 言語です。',
+        languageModes: {
+          auto: '自動検出',
+          workingLanguages: '作業言語に合わせる',
+          manual: '手動指定',
+        },
+        languageAdd: '言語を追加',
+        languageLimit: '最大 4 言語',
+        languageEmpty: '言語を選ばない場合は自動検出になります。',
+        languageRemove: '{{name}} を削除',
+        dialectLabel: '中国語の方言',
+        dialectHint:
+          '中国語の方言を標準中国語に変換するか、方言のまま残すかを選びます。各文の確定結果にのみ適用されます。',
+        dialectOptions: {
+          mandarin: '標準中国語に変換',
+          keep: '方言のまま残す',
+        },
+        hotwordsLabel: '辞書のホットワードを使う',
+        hotwordsHint:
+          'OpenLess 辞書の項目を即時ホットワードとしてモデルに送ります。中国語・日本語などを含む 15 文字超の項目と、7 語を超える英語のみの項目は送られません。',
+        hotwordWeightLabel: 'ホットワードの重み',
+        hotwordWeightHint: '1–5。大きいほど辞書の表記が優先されます。',
+        contextLabel: 'コンテキスト強化',
+        contextHint:
+          '直近の音声入力のテキスト（最大 5 件、各 400 文字まで）を前文としてモデルに送り、連続した口述での固有名詞の認識精度を高めます。期間は「会話コンテキスト窓（分）」の設定に従い、0 の場合は送信しません。',
+        moreShow: 'その他の設定',
+        moreHide: 'その他の設定を閉じる',
+        vadLabel: 'マイクとの距離',
+        vadHint:
+          '音声区間を判定する VAD モデルです。ヘッドセットやマイクの近くで話すなら近距離、マイクから離れているなら遠距離を選びます。',
+        vadOptions: {
+          default: '既定（遠距離）',
+          near: '近距離',
+          far: '遠距離',
+        },
+        silenceLabel: '文末と判定する無音時間（ミリ秒）',
+        silenceHint:
+          'この時間を超える無音で文の終わりと判定します。範囲 200–6000、空欄なら既定値 800。',
+        silenceInvalid: '無音時間は 200–6000 の整数で入力してください。',
+        noiseLabel: 'ノイズしきい値',
+        noiseHint:
+          '範囲 -1～1。-1 に近いほどノイズを音声と判定しやすく、1 に近いほど小さな声をノイズと判定しやすくなります。空欄ならサービスの既定値です。',
+        noisePlaceholder: '既定',
+        noiseInvalid: 'ノイズしきい値は -1～1 の数値で入力してください。',
+      },
       appIdLabel: 'App ID（アプリケーション ID）',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Resource ID',

@@ -144,6 +144,9 @@ pub struct BailianCredentials {
     pub endpoint: String,
     pub model: String,
     pub vocabulary_id: Option<String>,
+    /// Qwen-Audio 3.1 extras (`parameters` + `input.context`); empty for
+    /// every other model, which keeps their run-task byte-for-byte unchanged.
+    pub qwen_audio: crate::asr::qwen_audio::QwenAudioRequest,
 }
 
 impl BailianCredentials {
@@ -321,6 +324,7 @@ impl BailianRealtimeASR {
                 &task_id,
                 &self.credentials.normalized_model(),
                 self.credentials.vocabulary_id.as_deref(),
+                &self.credentials.qwen_audio,
             ),
         )
         .await?;
@@ -742,7 +746,12 @@ fn merge_segments(segments: &[String]) -> String {
     result
 }
 
-fn run_task_message(task_id: &str, model: &str, vocabulary_id: Option<&str>) -> String {
+fn run_task_message(
+    task_id: &str,
+    model: &str,
+    vocabulary_id: Option<&str>,
+    qwen_audio: &crate::asr::qwen_audio::QwenAudioRequest,
+) -> String {
     let mut parameters = json!({
         "sample_rate": if model_is_8k(model) { 8000 } else { 16000 },
         "format": "pcm"
@@ -750,6 +759,17 @@ fn run_task_message(task_id: &str, model: &str, vocabulary_id: Option<&str>) -> 
     if let Some(vocabulary_id) = vocabulary_id.map(str::trim).filter(|id| !id.is_empty()) {
         parameters["vocabulary_id"] = Value::String(vocabulary_id.to_string());
     }
+    for (key, value) in &qwen_audio.parameters {
+        if key != "format" && key != "sample_rate" {
+            parameters[key.as_str()] = value.clone();
+        }
+    }
+    let context = qwen_audio.context_messages();
+    let input = if context.is_empty() {
+        json!({})
+    } else {
+        json!({ "context": context })
+    };
 
     json!({
         "header": {
@@ -763,7 +783,7 @@ fn run_task_message(task_id: &str, model: &str, vocabulary_id: Option<&str>) -> 
             "function": "recognition",
             "model": model,
             "parameters": parameters,
-            "input": {}
+            "input": input
         }
     })
     .to_string()
@@ -881,6 +901,7 @@ mod tests {
             endpoint: String::new(),
             model: String::new(),
             vocabulary_id: None,
+            qwen_audio: Default::default(),
         })
     }
 
@@ -1223,6 +1244,7 @@ mod tests {
             endpoint: "".to_string(),
             model: "".to_string(),
             vocabulary_id: None,
+            qwen_audio: Default::default(),
         };
         assert_eq!(creds.normalized_endpoint(), DEFAULT_ENDPOINT);
         assert_eq!(creds.normalized_model(), DEFAULT_MODEL);
@@ -1230,8 +1252,13 @@ mod tests {
 
     #[test]
     fn run_task_message_uses_pcm_16k() {
-        let value: Value =
-            serde_json::from_str(&run_task_message("abc", DEFAULT_MODEL, None)).unwrap();
+        let value: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            DEFAULT_MODEL,
+            None,
+            &Default::default(),
+        ))
+        .unwrap();
         assert_eq!(value["header"]["action"], "run-task");
         assert_eq!(value["payload"]["model"], DEFAULT_MODEL);
         assert_eq!(value["payload"]["parameters"]["sample_rate"], 16000);
@@ -1240,10 +1267,116 @@ mod tests {
     }
 
     #[test]
+    fn run_task_message_without_extras_keeps_classic_shape() {
+        let value: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            DEFAULT_MODEL,
+            None,
+            &Default::default(),
+        ))
+        .unwrap();
+        assert_eq!(
+            value["payload"]["parameters"],
+            json!({"sample_rate": 16000, "format": "pcm"})
+        );
+        assert_eq!(value["payload"]["input"], json!({}));
+    }
+
+    #[test]
+    fn run_task_message_merges_qwen_audio_parameters_and_context() {
+        use crate::asr::qwen_audio::{self, QwenAsrOptions, QwenAudioSessionInputs};
+        let options = QwenAsrOptions {
+            disfluency_removal: true,
+            context_enhancement: true,
+            ..QwenAsrOptions::default()
+        };
+        let hotwords = vec!["OpenLess".to_string()];
+        let turns = vec!["上一句话".to_string()];
+        let request = qwen_audio::build_request(
+            qwen_audio::MESSAGE_MODEL,
+            &options,
+            &QwenAudioSessionInputs {
+                hotwords: &hotwords,
+                context_turns: &turns,
+                ..Default::default()
+            },
+        );
+        let mut hostile = request.clone();
+        hostile
+            .parameters
+            .insert("sample_rate".into(), Value::from(8000));
+        let value: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            qwen_audio::MESSAGE_MODEL,
+            Some("vocab-1"),
+            &hostile,
+        ))
+        .unwrap();
+        let parameters = &value["payload"]["parameters"];
+        assert_eq!(parameters["format"], "pcm");
+        assert_eq!(
+            parameters["sample_rate"], 16000,
+            "extras never override audio format"
+        );
+        assert_eq!(parameters["disfluency_removal_enabled"], true);
+        assert_eq!(parameters["intermediate_result_enabled"], true);
+        assert_eq!(parameters["vocabulary"], json!({"OpenLess": 4}));
+        assert_eq!(parameters["vocabulary_id"], "vocab-1");
+        assert_eq!(
+            value["payload"]["input"],
+            json!({"context": [{"role": "user", "content": [{"type": "input_text", "text": "上一句话"}]}]})
+        );
+    }
+
+    #[test]
+    fn qwen_audio_message_events_stream_raw_text_then_polished_final() {
+        // Event shapes captured from qwen-audio-3.1-asr-flash-message with
+        // disfluency_removal_enabled + intermediate_result_enabled.
+        let asr = create_test_asr();
+        let capture = Arc::new(crate::asr::TranscriptCapture::default());
+        asr.set_partial_sink(capture.clone());
+        let event = |text: &str, end: bool, begin: Option<bool>| {
+            let mut sentence = json!({
+                "sentence_id": 1, "begin_time": 120, "end_time": if end { json!(1700) } else { Value::Null },
+                "text": text, "channel_id": 0, "speaker_id": null, "sentence_end": end,
+                "words": [], "stash": {"sentence_id": 2, "text": "", "begin_time": 1700, "current_time": 1700, "words": []}
+            });
+            if let Some(begin) = begin {
+                sentence["sentence_begin"] = Value::Bool(begin);
+            }
+            json!({"header": {"event": "result-generated", "attributes": {}},
+                   "payload": {"output": {"sentence": sentence}}})
+        };
+        asr.record_result(&event("", false, Some(true)));
+        asr.record_result(&event("嗯那个我们明天", false, None));
+        asr.record_result(&event(
+            "嗯那个我们明天明天下午3点，不对四点开会",
+            false,
+            None,
+        ));
+        asr.record_result(&event("我们明天下午4点开会。", true, None));
+        capture.assert_snapshots(&[
+            "嗯那个我们明天",
+            "嗯那个我们明天明天下午3点，不对四点开会",
+            "我们明天下午4点开会。",
+        ]);
+        let state = asr.state.lock();
+        assert_eq!(
+            state.final_segments.get(&1).unwrap(),
+            "我们明天下午4点开会。"
+        );
+        assert!(state.partial_segments.is_empty());
+    }
+
+    #[test]
     fn run_task_message_uses_pcm_8k_for_8k_model() {
-        let value: Value =
-            serde_json::from_str(&run_task_message("abc", "fun-asr-flash-8k-realtime", None))
-                .unwrap();
+        let value: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            "fun-asr-flash-8k-realtime",
+            None,
+            &Default::default(),
+        ))
+        .unwrap();
         assert_eq!(value["payload"]["parameters"]["sample_rate"], 8000);
     }
 
@@ -1299,6 +1432,7 @@ mod tests {
             endpoint: String::new(),
             model: "fun-asr-flash-8k-realtime".to_string(),
             vocabulary_id: None,
+            qwen_audio: Default::default(),
         });
         let first = [
             1_i16.to_le_bytes(),
@@ -1322,9 +1456,13 @@ mod tests {
 
     #[test]
     fn run_task_message_includes_optional_vocabulary_id() {
-        let value: Value =
-            serde_json::from_str(&run_task_message("abc", DEFAULT_MODEL, Some(" vocab-123 ")))
-                .unwrap();
+        let value: Value = serde_json::from_str(&run_task_message(
+            "abc",
+            DEFAULT_MODEL,
+            Some(" vocab-123 "),
+            &Default::default(),
+        ))
+        .unwrap();
         assert_eq!(value["payload"]["parameters"]["vocabulary_id"], "vocab-123");
     }
 

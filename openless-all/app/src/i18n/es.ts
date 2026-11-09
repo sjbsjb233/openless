@@ -2068,6 +2068,62 @@ export const es: typeof zhCN = {
         'Modelo síncrono de grabación: transcribe al terminar (máx. 5 min por grabación).',
       bailianModelAsyncFileHint:
         'Modelo asíncrono de archivos: sube la grabación y espera a que termine la tarea de transcripción.',
+      qwenAsr: {
+        title: 'Opciones de Qwen ASR',
+        note: 'Solo se aplica a los modelos Qwen-Audio 3.1. Los cambios se aplican desde el siguiente dictado.',
+        nativePolishLabel: 'Pulido nativo',
+        nativePolishHint:
+          'El modelo elimina muletillas, repeticiones y autocorrecciones y pule el texto. Se aplica al resultado final de cada frase; mientras hablas se muestra el texto original. Con esta opción activada puedes poner el modo de mejora de OpenLess en «Original» y ahorrarte una llamada al LLM.',
+        intermediateLabel: 'Mostrar texto al hablar',
+        intermediateHint:
+          'Devuelve resultados intermedios para que la cápsula muestre el texto mientras se reconoce. Si está desactivado, el texto aparece al terminar cada frase.',
+        languageLabel: 'Idioma de reconocimiento',
+        languageHint:
+          'La detección automática sirve para habla en varios idiomas. «Seguir idiomas habituales» usa los idiomas compatibles de tus idiomas habituales. El modo manual permite hasta 4 idiomas.',
+        languageModes: {
+          auto: 'Detección automática',
+          workingLanguages: 'Seguir idiomas habituales',
+          manual: 'Manual',
+        },
+        languageAdd: 'Añadir idioma',
+        languageLimit: 'Hasta 4 idiomas',
+        languageEmpty: 'Sin idiomas seleccionados se usa la detección automática.',
+        languageRemove: 'Quitar {{name}}',
+        dialectLabel: 'Dialectos chinos',
+        dialectHint:
+          'Transcribe los dialectos chinos como mandarín estándar o conserva la expresión dialectal. Se aplica al resultado final de cada frase.',
+        dialectOptions: {
+          mandarin: 'Convertir a mandarín',
+          keep: 'Conservar el dialecto',
+        },
+        hotwordsLabel: 'Usar palabras clave del diccionario',
+        hotwordsHint:
+          'Envía las entradas del diccionario de OpenLess al modelo como palabras clave instantáneas. Se omiten las entradas con caracteres chinos de más de 15 caracteres y las solo en inglés de más de 7 palabras.',
+        hotwordWeightLabel: 'Peso de las palabras clave',
+        hotwordWeightHint: '1–5. Cuanto mayor, más se prioriza la grafía del diccionario.',
+        contextLabel: 'Refuerzo de contexto',
+        contextHint:
+          'Envía el texto de tus dictados recientes (hasta 5, de 400 caracteres cada uno) como contexto previo para reconocer mejor nombres y términos al dictar de forma continua. Usa el ajuste «Ventana de contexto para mejorar texto (minutos)»; con 0 no se envía nada.',
+        moreShow: 'Más opciones',
+        moreHide: 'Menos opciones',
+        vadLabel: 'Distancia al micrófono',
+        vadHint:
+          'El modelo VAD que detecta la voz. Elige campo cercano con auriculares o hablando cerca del micrófono, y campo lejano si el micrófono está más lejos.',
+        vadOptions: {
+          default: 'Predeterminado (campo lejano)',
+          near: 'Campo cercano',
+          far: 'Campo lejano',
+        },
+        silenceLabel: 'Silencio de fin de frase (ms)',
+        silenceHint:
+          'Una frase termina tras este silencio. Rango 200–6000; déjalo vacío para usar el valor predeterminado de 800.',
+        silenceInvalid: 'El silencio de fin de frase debe ser un número entero entre 200 y 6000.',
+        noiseLabel: 'Umbral de ruido',
+        noiseHint:
+          'Rango -1 a 1. Cuanto más cerca de -1, más ruido se toma por voz; cuanto más cerca de 1, más voz suave se toma por ruido. Déjalo vacío para usar el valor predeterminado del servicio.',
+        noisePlaceholder: 'Predeterminado',
+        noiseInvalid: 'El umbral de ruido debe ser un número entre -1 y 1.',
+      },
       appIdLabel: 'App ID',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Resource ID',

@@ -282,6 +282,7 @@ impl SelectionServiceInner {
         context.polish.cursor_context = None;
         context.polish.context_window_minutes = 0;
         context.polish.prior_turns.clear();
+        context.polish.asr_context_turns.clear();
         Ok((context, preferences.selection_polish_output_mode, uses_llm))
     }
 

@@ -1,4 +1,8 @@
-import { LLM_LABELS } from './ProvidersSection';
+import {
+  LLM_LABELS,
+  bailianModelProtocol,
+  bailianModelSupportsVocabulary,
+} from './ProvidersSection';
 import { ASR_LABELS } from './shared';
 import { presetsFor } from './ChannelList';
 import { filterOrcaRouterModels } from '../../lib/ipc/asr-credentials';
@@ -98,4 +102,27 @@ for (const labels of [LLM_LABELS, ASR_LABELS]) {
   if (!labels.some((label) => label.id === 'orcarouter' && label.nameKey === 'orcarouter')) {
     throw new Error('OrcaRouter provider label is missing');
   }
+}
+
+// Bailian model classification mirrors provider_rules::resolve_effective_asr_provider.
+for (const [model, protocol] of [
+  ['qwen-audio-3.1-asr-flash-message', 'realtime'],
+  ['qwen-audio-3.1-asr-flash-streaming', 'realtime'],
+  ['qwen-audio-3.0-asr-flash-streaming', 'realtime'],
+  ['qwen-audio-3.1-asr-flash', 'sync'],
+  ['qwen-audio-3.0-asr-flash', 'sync'],
+  ['qwen-audio-3.1-asr-flash-filetrans', 'async'],
+  ['fun-asr-realtime', 'realtime'],
+  ['fun-asr-flash-2026-06-15', 'sync'],
+  ['fun-asr', 'async'],
+] as const) {
+  if (bailianModelProtocol(model) !== protocol) {
+    throw new Error(`${model} should be classified as ${protocol}`);
+  }
+}
+for (const model of ['qwen-audio-3.1-asr-flash-message', 'qwen-audio-3.1-asr-flash-filetrans']) {
+  if (!bailianModelSupportsVocabulary(model)) throw new Error(`${model} accepts vocabulary_id`);
+}
+if (bailianModelSupportsVocabulary('qwen-audio-3.0-asr-flash')) {
+  throw new Error('qwen-audio-3.0-asr-flash batch does not send vocabulary_id');
 }

@@ -416,6 +416,10 @@
     "validationProbe": "asr_silence",
     "staticModels": [
       "fun-asr-realtime",
+      "qwen-audio-3.1-asr-flash-message",
+      "qwen-audio-3.1-asr-flash-streaming",
+      "qwen-audio-3.1-asr-flash",
+      "qwen-audio-3.1-asr-flash-filetrans",
       "fun-asr-flash-8k-realtime",
       "qwen3-asr-flash-realtime",
       "qwen3-asr-flash-realtime-2026-02-10",

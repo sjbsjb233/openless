@@ -2083,6 +2083,63 @@ export const de: typeof zhCN = {
         'Synchrones Aufnahmemodell · transkribiert nach dem Beenden (einzelne Aufnahme ≤ 5 Min.).',
       bailianModelAsyncFileHint:
         'Asynchrones Dateimodell · lädt die Aufnahme hoch und wartet auf den Transkriptionsauftrag.',
+      qwenAsr: {
+        title: 'Qwen-ASR-Optionen',
+        note: 'Gilt nur für Qwen-Audio-3.1-Modelle. Änderungen wirken ab dem nächsten Diktat.',
+        nativePolishLabel: 'Native Glättung',
+        nativePolishHint:
+          'Das Modell entfernt Füllwörter, Wiederholungen und Selbstkorrekturen und glättet den Text. Das gilt für das Endergebnis jedes Satzes; während du sprichst, siehst du den Rohtext. Ist sie aktiv, kannst du den OpenLess-Überarbeitungsmodus auf „Original“ stellen und einen LLM-Aufruf sparen.',
+        intermediateLabel: 'Text beim Sprechen anzeigen',
+        intermediateHint:
+          'Liefert Zwischenergebnisse, sodass die Kapsel den erkannten Text live zeigt. Ausgeschaltet erscheint Text erst nach jedem Satzende.',
+        languageLabel: 'Erkennungssprache',
+        languageHint:
+          'Automatisch eignet sich für gemischtsprachige Sprache. „Arbeitssprachen folgen“ nutzt die unterstützten Sprachen aus den Arbeitssprachen. Manuell erlaubt bis zu 4 Sprachen.',
+        languageModes: {
+          auto: 'Automatisch erkennen',
+          workingLanguages: 'Arbeitssprachen folgen',
+          manual: 'Manuell',
+        },
+        languageAdd: 'Sprache hinzufügen',
+        languageLimit: 'Höchstens 4 Sprachen',
+        languageEmpty: 'Ohne ausgewählte Sprache wird automatisch erkannt.',
+        languageRemove: '{{name}} entfernen',
+        dialectLabel: 'Chinesische Dialekte',
+        dialectHint:
+          'Chinesische Dialekte als Hochchinesisch transkribieren oder den Dialektwortlaut behalten. Gilt für das Endergebnis jedes Satzes.',
+        dialectOptions: {
+          mandarin: 'In Hochchinesisch umwandeln',
+          keep: 'Dialekt beibehalten',
+        },
+        hotwordsLabel: 'Wörterbuch als Hotwords',
+        hotwordsHint:
+          'Sendet OpenLess-Wörterbucheinträge als Sofort-Hotwords an das Modell. Einträge mit chinesischen Zeichen über 15 Zeichen und rein englische Einträge über 7 Wörter werden übersprungen.',
+        hotwordWeightLabel: 'Hotword-Gewichtung',
+        hotwordWeightHint:
+          '1–5. Höhere Werte bevorzugen die Schreibweise aus dem Wörterbuch stärker.',
+        contextLabel: 'Kontextverstärkung',
+        contextHint:
+          'Sendet den Text deiner letzten Diktate (bis zu 5, je 400 Zeichen) als vorangehenden Kontext, damit Namen und Fachbegriffe beim fortlaufenden Diktieren besser erkannt werden. Nutzt die Einstellung „Kontextfenster für Überarbeitung (Minuten)“; bei 0 wird nichts gesendet.',
+        moreShow: 'Weitere Optionen',
+        moreHide: 'Weniger Optionen',
+        vadLabel: 'Mikrofonabstand',
+        vadHint:
+          'Das VAD-Modell, das Sprache erkennt. Nahfeld für Headsets oder nahes Sprechen ins Mikrofon, Fernfeld bei größerem Abstand.',
+        vadOptions: {
+          default: 'Standard (Fernfeld)',
+          near: 'Nahfeld',
+          far: 'Fernfeld',
+        },
+        silenceLabel: 'Stille bis Satzende (ms)',
+        silenceHint:
+          'Nach so viel Stille endet ein Satz. Bereich 200–6000; leer lassen für den Standardwert 800.',
+        silenceInvalid: 'Die Stille bis Satzende muss eine ganze Zahl von 200 bis 6000 sein.',
+        noiseLabel: 'Rauschschwelle',
+        noiseHint:
+          'Bereich -1 bis 1. Näher an -1 wird mehr Rauschen als Sprache erkannt, näher an 1 mehr leise Sprache als Rauschen. Leer lassen für den Standardwert des Dienstes.',
+        noisePlaceholder: 'Standard',
+        noiseInvalid: 'Die Rauschschwelle muss eine Zahl von -1 bis 1 sein.',
+      },
       appIdLabel: 'App-ID',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Ressourcen-ID',

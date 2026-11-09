@@ -37,6 +37,10 @@
       "providerType": "bailian",
       "staticModels": [
         "fun-asr-realtime",
+        "qwen-audio-3.1-asr-flash-message",
+        "qwen-audio-3.1-asr-flash-streaming",
+        "qwen-audio-3.1-asr-flash",
+        "qwen-audio-3.1-asr-flash-filetrans",
         "fun-asr-flash-8k-realtime",
         "qwen3-asr-flash-realtime",
         "qwen3-asr-flash-realtime-2026-02-10",
@@ -500,6 +504,18 @@
         "gpt-5.4",
         "gpt-5.5"
       ],
+      "supportedRequestFormats": [],
+      "validationProbe": "llm_text"
+    },
+    {
+      "authRequirement": "siwc",
+      "defaultEndpoint": "https://api.openai.com/v1",
+      "defaultModel": null,
+      "defaultRequestFormat": null,
+      "kind": "llm",
+      "labelKey": "chatgptSiwc",
+      "providerType": "chatgpt_siwc",
+      "staticModels": [],
       "supportedRequestFormats": [],
       "validationProbe": "llm_text"
     },

@@ -143,6 +143,11 @@ pub struct DictationPolishContext {
     pub cursor_context: Option<String>,
     /// Newest-first turns captured when the session starts.
     pub prior_turns: Vec<PolishHistoryTurn>,
+    /// Recent dictation transcripts, oldest first, captured from the same
+    /// history window as `prior_turns`. ASR providers that accept
+    /// recognition context (Qwen-Audio 3.1 `input.context`) send them only
+    /// when the channel enables context enhancement.
+    pub asr_context_turns: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -305,6 +310,7 @@ impl DictationContext {
                 .clone()
                 .and_then(non_blank_owned);
         }
+        let asr_context_turns = recent_asr_context_turns(&recent_history);
         let prior_turns =
             eligible_polish_context_turns(recent_history, &style_pack.id, translation_active);
         let asr_fallback = local_asr_fallback(
@@ -393,6 +399,7 @@ impl DictationContext {
                 front_app: options.front_app.clone().and_then(non_blank_owned),
                 cursor_context: options.cursor_context.clone().and_then(non_blank_owned),
                 prior_turns,
+                asr_context_turns,
             },
             insertion: DictationInsertionContext {
                 enabled: options.insert_text
@@ -683,6 +690,29 @@ pub fn build_asr_prompt(phrases: &[String]) -> Option<String> {
 /// Keep only recent successful turns from the same style pack. The input and
 /// output are newest-first so providers can reverse them when building chat
 /// messages.
+/// Speech transcripts usable as ASR recognition context: the newest
+/// `qwen_audio::MAX_CONTEXT_TURNS` successful voice / quick-note sessions,
+/// returned oldest first. Selection and voice-edit sessions are commands or
+/// typed text, not dictation, so they are left out.
+pub fn recent_asr_context_turns(sessions: &[DictationSession]) -> Vec<String> {
+    let mut turns: Vec<String> = sessions
+        .iter()
+        .filter(|session| {
+            session.error_code.is_none()
+                && matches!(
+                    session.source,
+                    crate::types::HistorySource::Voice | crate::types::HistorySource::QuickNote
+                )
+        })
+        .map(|session| session.raw_transcript.trim())
+        .filter(|text| !text.is_empty())
+        .take(crate::asr::qwen_audio::MAX_CONTEXT_TURNS)
+        .map(str::to_string)
+        .collect();
+    turns.reverse();
+    turns
+}
+
 pub fn eligible_polish_context_turns(
     sessions: Vec<DictationSession>,
     active_style_pack_id: &str,

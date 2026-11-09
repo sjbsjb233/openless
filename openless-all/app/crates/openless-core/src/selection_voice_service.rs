@@ -434,6 +434,7 @@ impl SelectionVoiceWorkflow {
         context.polish.cursor_context = None;
         context.polish.context_window_minutes = 0;
         context.polish.prior_turns.clear();
+        context.polish.asr_context_turns.clear();
         let output = if context.pipeline_mode == PipelineMode::Multimodal {
             crate::cloud_providers::polish_with_omni_text(
                 self.credential_store.as_ref(),

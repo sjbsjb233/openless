@@ -2041,6 +2041,62 @@ export const en: typeof zhCN = {
         'Synchronous recording model · transcribes after you finish (single clip ≤ 5 min).',
       bailianModelAsyncFileHint:
         'Asynchronous file model · uploads the recording and waits for the transcription task.',
+      qwenAsr: {
+        title: 'Qwen ASR options',
+        note: 'Applies to Qwen-Audio 3.1 models only. Changes take effect from the next dictation.',
+        nativePolishLabel: 'Native polishing',
+        nativePolishHint:
+          "The model removes filler words, repetitions and self-corrections and smooths the text. It applies to each sentence's final result; while you speak, the raw words are shown. With it on, you can set the OpenLess polish mode to Raw to skip one LLM call.",
+        intermediateLabel: 'Stream text while speaking',
+        intermediateHint:
+          'Returns interim results so the capsule shows text as it is recognized. When off, text appears only after each sentence ends.',
+        languageLabel: 'Recognition language',
+        languageHint:
+          'Auto-detect suits mixed-language speech. Follow working languages uses the supported languages from Working languages. Manual allows up to 4 languages.',
+        languageModes: {
+          auto: 'Auto-detect',
+          workingLanguages: 'Follow working languages',
+          manual: 'Manual',
+        },
+        languageAdd: 'Add language',
+        languageLimit: 'Up to 4 languages',
+        languageEmpty: 'With no language selected, auto-detect is used.',
+        languageRemove: 'Remove {{name}}',
+        dialectLabel: 'Chinese dialects',
+        dialectHint:
+          "Transcribe Chinese dialects as standard Mandarin text, or keep the dialect wording. Applies to each sentence's final result.",
+        dialectOptions: {
+          mandarin: 'Convert to Mandarin',
+          keep: 'Keep dialect wording',
+        },
+        hotwordsLabel: 'Use dictionary hotwords',
+        hotwordsHint:
+          'Sends OpenLess dictionary entries to the model as instant hotwords. Entries with Chinese characters longer than 15 characters, or English-only entries longer than 7 words, are skipped.',
+        hotwordWeightLabel: 'Hotword weight',
+        hotwordWeightHint: '1–5. Higher values make the model favor the dictionary spelling more.',
+        contextLabel: 'Context enhancement',
+        contextHint:
+          'Sends the text of your recent dictations (up to 5, 400 characters each) as preceding context, improving names and terms in continuous dictation. Uses the Polish context window (minutes) setting; 0 sends nothing.',
+        moreShow: 'More options',
+        moreHide: 'Fewer options',
+        vadLabel: 'Microphone distance',
+        vadHint:
+          'The VAD model that detects speech. Choose near field for headsets or speaking close to the mic, far field when the mic is farther away.',
+        vadOptions: {
+          default: 'Default (far field)',
+          near: 'Near field',
+          far: 'Far field',
+        },
+        silenceLabel: 'Sentence-end silence (ms)',
+        silenceHint:
+          'A sentence ends after this much silence. Range 200–6000; leave empty for the default of 800.',
+        silenceInvalid: 'Sentence-end silence must be a whole number from 200 to 6000.',
+        noiseLabel: 'Noise threshold',
+        noiseHint:
+          'Range -1 to 1. Closer to -1 treats more noise as speech; closer to 1 treats more quiet speech as noise. Leave empty for the service default.',
+        noisePlaceholder: 'Default',
+        noiseInvalid: 'The noise threshold must be a number from -1 to 1.',
+      },
       appIdLabel: 'App ID',
       accessKeyLabel: 'Access Key',
       resourceIdLabel: 'Resource ID',

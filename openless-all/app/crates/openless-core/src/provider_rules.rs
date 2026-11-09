@@ -92,6 +92,10 @@ const OMNI_PROVIDER_TYPES: &[(&str, &str)] = &[
 
 const BAILIAN_MODELS: &[&str] = &[
     crate::asr::bailian::DEFAULT_MODEL,
+    crate::asr::qwen_audio::MESSAGE_MODEL,
+    crate::asr::qwen_audio::STREAMING_MODEL,
+    crate::asr::qwen_audio::FLASH_MODEL,
+    crate::asr::qwen_audio::FILETRANS_MODEL,
     "fun-asr-flash-8k-realtime",
     crate::asr::qwen_realtime::DEFAULT_MODEL,
     "qwen3-asr-flash-realtime-2026-02-10",
@@ -938,19 +942,25 @@ pub fn resolve_effective_asr_provider(active_asr: &str, model: &str) -> Result<S
         Ok(DASHSCOPE_MULTIMODAL_PROVIDER_ID.to_string())
     } else {
         Err(format!(
-            "不支持的百炼 ASR 模型：{model}。支持 Fun-ASR、Paraformer、SenseVoice、qwen-audio-3.0-asr-flash 和 Qwen3-ASR 的实时、同步及录音文件模型"
+            "不支持的百炼 ASR 模型：{model}。支持 Fun-ASR、Paraformer、SenseVoice、Qwen-Audio 3.0 / 3.1 和 Qwen3-ASR 的实时、同步及录音文件模型"
         ))
     }
 }
 
 fn is_classic_bailian_realtime_model(model: &str) -> bool {
-    model == "qwen-audio-3.0-asr-flash-streaming"
+    is_qwen_audio_realtime_model(model)
         || model.starts_with("fun-asr-realtime")
         || model.starts_with("fun-asr-flash-8k-realtime")
         || model.starts_with("paraformer-realtime")
         || model.starts_with("paraformer-8k-realtime")
         || model.starts_with("sensevoice-realtime")
         || model.starts_with("sensevoice-8k-realtime")
+}
+
+/// Qwen-Audio models served over the classic DashScope duplex WebSocket
+/// (`/api-ws/v1/inference`): 3.0 `-streaming` and 3.1 `-streaming` / `-message`.
+fn is_qwen_audio_realtime_model(model: &str) -> bool {
+    model.starts_with("qwen-audio") && (model.contains("-streaming") || model.contains("-message"))
 }
 
 pub fn stepfun_model_is_stream(model: &str) -> bool {
@@ -979,9 +989,19 @@ pub fn dashscope_batch_protocol_for_model(model: &str) -> Option<DashScopeBatchP
     if model.starts_with("qwen3-asr-flash-filetrans") {
         return None;
     }
+    if model.starts_with("qwen-audio") {
+        // Qwen-Audio: `-streaming` / `-message` are duplex-WS realtime models,
+        // `-filetrans` is async file transcription, the rest are sync HTTP.
+        if is_qwen_audio_realtime_model(model) {
+            return None;
+        }
+        if model.contains("-filetrans") {
+            return Some(DashScopeBatchProtocol::AsyncTranscription);
+        }
+        return Some(DashScopeBatchProtocol::Multimodal);
+    }
     let qwen_sync = dashscope_uses_qwen_sync_envelope(model);
-    let qwen_audio = model.starts_with("qwen-audio") && !model.contains("streaming");
-    if model.starts_with("fun-asr-flash") || qwen_sync || qwen_audio {
+    if model.starts_with("fun-asr-flash") || qwen_sync {
         return Some(DashScopeBatchProtocol::Multimodal);
     }
     if model == "fun-asr" || model.starts_with("fun-asr-") || model.starts_with("paraformer") {
@@ -1272,6 +1292,50 @@ mod tests {
             STEPFUN_REALTIME_PROVIDER_ID
         );
         assert!(resolve_effective_asr_provider(BAILIAN_PROVIDER_ID, "unknown-asr").is_err());
+    }
+
+    #[test]
+    fn routes_qwen_audio_3_1_family_to_its_transport() {
+        use crate::asr::qwen_audio::{
+            FILETRANS_MODEL, FLASH_MODEL, MESSAGE_MODEL, STREAMING_MODEL,
+        };
+        for (model, provider, batch) in [
+            (MESSAGE_MODEL, BAILIAN_PROVIDER_ID, None),
+            (STREAMING_MODEL, BAILIAN_PROVIDER_ID, None),
+            (
+                FLASH_MODEL,
+                DASHSCOPE_MULTIMODAL_PROVIDER_ID,
+                Some(DashScopeBatchProtocol::Multimodal),
+            ),
+            (
+                FILETRANS_MODEL,
+                DASHSCOPE_MULTIMODAL_PROVIDER_ID,
+                Some(DashScopeBatchProtocol::AsyncTranscription),
+            ),
+            (
+                "qwen-audio-3.0-asr-flash-filetrans",
+                DASHSCOPE_MULTIMODAL_PROVIDER_ID,
+                Some(DashScopeBatchProtocol::AsyncTranscription),
+            ),
+        ] {
+            assert_eq!(
+                resolve_effective_asr_provider(BAILIAN_PROVIDER_ID, model).unwrap(),
+                provider,
+                "{model}"
+            );
+            assert_eq!(dashscope_batch_protocol_for_model(model), batch, "{model}");
+        }
+        assert!(BAILIAN_MODELS.contains(&MESSAGE_MODEL));
+        assert!(BAILIAN_MODELS.contains(&FILETRANS_MODEL));
+        // Realtime models use the silence probe; batch ones the sample-audio probe.
+        assert_ne!(
+            validation_probe_for(ProviderKind::Asr, BAILIAN_PROVIDER_ID, Some(MESSAGE_MODEL)),
+            ValidationProbe::AsrNonSilent
+        );
+        assert_eq!(
+            validation_probe_for(ProviderKind::Asr, BAILIAN_PROVIDER_ID, Some(FLASH_MODEL)),
+            ValidationProbe::AsrNonSilent
+        );
     }
 
     #[test]
